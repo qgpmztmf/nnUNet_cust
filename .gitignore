@@ -113,3 +113,19 @@ ENV/
 
 *.model
 
+# ── Project-specific ────────────────────────────────────────────────────────
+
+# Virtual environment (gigabytes of CUDA/PyTorch binaries — never commit)
+.venv/
+
+# SLURM job logs (regenerated every run, can be MBs each)
+logs/
+
+# PyTorch model checkpoints
+*.pt
+*.pth
+
+# HDF5 / other large binary data formats
+*.hdf5
+*.h5
+
