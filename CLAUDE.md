@@ -1,5 +1,18 @@
 # Project: nnUNet Custom Pipeline for TotalSegmentator
 
+## Current Status
+> See STATUS.md for full details. Update after each session.
+
+| Task | Fold 0 | Fold 1 | Fold 2 | Fold 3 | Fold 4 |
+|------|--------|--------|--------|--------|--------|
+| Task601 (TotalSegV1) | DONE | RUNNING | DONE | DONE | DONE |
+| Task611 (Group1) | RUNNING | not started | RUNNING | RUNNING | PENDING |
+| Task612 (Group2) | DONE | DONE | DONE | DONE | RUNNING |
+| Task613 (Group3) | DONE | DONE | RUNNING | RUNNING | RUNNING |
+| Task614 (Group4) | RUNNING | RUNNING | RUNNING | RUNNING | RUNNING |
+
+**Next:** Validate Task612 once fold 4 done · Submit Task611 fold 1 · Monitor Task601 fold 1 (1d+ running)
+
 ## Project Overview
 End-to-end nnUNet v1 pipeline for TotalSegmentator medical image segmentation on the Triton HPC cluster.
 
