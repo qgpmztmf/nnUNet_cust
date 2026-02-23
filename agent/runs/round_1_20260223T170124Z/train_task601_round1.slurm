@@ -2,7 +2,7 @@
 #SBATCH --job-name=nnunet_train_601_r1
 #SBATCH --partition=gpu-h200-35g-ia-ellis
 #SBATCH --time=0-08:00:00
-#SBATCH --gres=gpu:h200:1
+#SBATCH --gres=gpu:h200_2g.35gb:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=512G
 #SBATCH --output=/home/tianmid1/tianmid1/t41026-hintlab/tianmid1/nnUNet_cust/agent/runs/round_1_20260223T170124Z/train_601_round1_fold%a_%j.out

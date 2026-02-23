@@ -800,7 +800,7 @@ class PipelineManager:
 #SBATCH --job-name={job_name}
 #SBATCH --partition=gpu-h200-35g-ia-ellis
 #SBATCH --time=0-08:00:00
-#SBATCH --gres=gpu:h200:1
+#SBATCH --gres=gpu:h200_2g.35gb:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=512G
 #SBATCH --output={self.run_dir}/{log_stem}_fold%a_%j.out
@@ -918,7 +918,7 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
             sbatch_resources = (
                 f"#SBATCH --partition=gpu-h200-35g-ia-ellis\n"
                 f"#SBATCH --time=0-08:00:00\n"
-                f"#SBATCH --gres=gpu:h200:1\n"
+                f"#SBATCH --gres=gpu:h200_2g.35gb:1\n"
                 f"#SBATCH --cpus-per-task=16\n"
                 f"#SBATCH --mem=128G"
             )
