@@ -798,7 +798,7 @@ class PipelineManager:
         slurm_content = f"""\
 #!/bin/bash
 #SBATCH --job-name={job_name}
-#SBATCH --partition=gpu-h200-141g-ellis
+#SBATCH --partition=gpu-h200-35g-ia-ellis
 #SBATCH --time=3-00:00:00
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=16
@@ -916,7 +916,7 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
         # SBATCH resource headers differ: GPU needed only for test-set inference
         if self.use_test_data:
             sbatch_resources = (
-                f"#SBATCH --partition=gpu-h200-141g-ellis\n"
+                f"#SBATCH --partition=gpu-h200-35g-ia-ellis\n"
                 f"#SBATCH --time=0-08:00:00\n"
                 f"#SBATCH --gres=gpu:h200:1\n"
                 f"#SBATCH --cpus-per-task=16\n"

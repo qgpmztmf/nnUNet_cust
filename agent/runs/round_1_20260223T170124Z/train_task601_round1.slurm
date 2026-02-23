@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=nnunet_train_601_r1
-#SBATCH --partition=gpu-h200-141g-ellis
+#SBATCH --partition=gpu-h200-35g-ia-ellis
 #SBATCH --time=3-00:00:00
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=16

@@ -5,7 +5,7 @@
     "value_range": "[100, 10000]",
     "category": "Training Loop Control",
     "description": "Maximum number of training epochs. nnUNetTrainerV2 always trains to this limit (no early stopping by default).",
-    "active_value": 10
+    "active_value": 50
   },
   "num_batches_per_epoch": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:98 | overridden in nnUNetTrainerV2_fast.__init__:11 | nnUNetTrainerV2_configurable.__init__:98",
@@ -26,7 +26,10 @@
   "also_val_in_tr_mode": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:100 | nnUNetTrainerV2_configurable.__init__:100",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Training Loop Control",
     "description": "Also compute validation loss with the network in training mode (adds train=True val losses to tracking)."
   },
@@ -68,14 +71,23 @@
   "optimizer_type_nnUNetTrainer": {
     "location": "nnUNetTrainer.py \u2192 initialize_optimizer_and_scheduler:267",
     "default_value": "Adam (amsgrad=True)",
-    "value_range": ["Adam", "SGD", "AdamW", "Ranger"],
+    "value_range": [
+      "Adam",
+      "SGD",
+      "AdamW",
+      "Ranger"
+    ],
     "category": "Optimizer",
     "description": "Optimizer used in base nnUNetTrainer. Replaced by SGD in nnUNetTrainerV2."
   },
   "optimizer_type_nnUNetTrainerV2": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_optimizer_and_scheduler:166 | nnUNetTrainerV2_configurable.py \u2192 initialize_optimizer_and_scheduler:638",
     "default_value": "SGD",
-    "value_range": ["SGD", "Adam", "AdamW"],
+    "value_range": [
+      "SGD",
+      "Adam",
+      "AdamW"
+    ],
     "category": "Optimizer",
     "description": "Optimizer used in nnUNetTrainerV2 and subclasses. SGD with high momentum and poly-LR schedule."
   },
@@ -111,14 +123,20 @@
   "sgd_nesterov": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_optimizer_and_scheduler:167 | nnUNetTrainerV2_configurable.__init__:111 | nnUNetTrainerV2_configurable.py \u2192 initialize_optimizer_and_scheduler:644",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Optimizer",
     "description": "Enable Nesterov momentum in SGD."
   },
   "adam_amsgrad": {
     "location": "nnUNetTrainer.py \u2192 initialize_optimizer_and_scheduler:268",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Optimizer",
     "description": "Use AMSGrad variant of Adam (base nnUNetTrainer only)."
   },
@@ -132,7 +150,12 @@
   "lr_scheduler_type_nnUNetTrainer": {
     "location": "nnUNetTrainer.py \u2192 initialize_optimizer_and_scheduler:269",
     "default_value": "ReduceLROnPlateau",
-    "value_range": ["ReduceLROnPlateau", "CosineAnnealingLR", "StepLR", "None"],
+    "value_range": [
+      "ReduceLROnPlateau",
+      "CosineAnnealingLR",
+      "StepLR",
+      "None"
+    ],
     "category": "Learning Rate Schedule",
     "description": "LR scheduler used in base nnUNetTrainer. Not used in nnUNetTrainerV2 (uses poly_lr instead)."
   },
@@ -174,14 +197,20 @@
   "fp16": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:59",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Mixed Precision / Reproducibility",
     "description": "Enable AMP training (torch.cuda.amp.autocast + GradScaler). Also controls mixed-precision inference."
   },
   "deterministic": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:62-68",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Mixed Precision / Reproducibility",
     "description": "If true: seeds NumPy/PyTorch/CUDA to 12345, enables cudnn.deterministic, disables cudnn.benchmark."
   },
@@ -195,7 +224,10 @@
   "pin_memory": {
     "location": "nnUNetTrainerV2.py \u2192 __init__:53 | nnUNetTrainerV2_configurable.__init__:187",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Mixed Precision / Reproducibility",
     "description": "Pin DataLoader memory for faster host-to-GPU transfer. Passed to get_moreDA_augmentation."
   },
@@ -209,42 +241,64 @@
   "save_latest_only": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:123 | nnUNetTrainerV2_configurable.__init__:191",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Checkpointing",
     "description": "Only keep model_latest.model; do not save per-epoch checkpoint files."
   },
   "save_intermediate_checkpoints": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:125 | nnUNetTrainerV2_configurable.__init__:192",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Checkpointing",
     "description": "Periodically save model_latest.model every save_every epochs."
   },
   "save_best_checkpoint": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:126 | nnUNetTrainerV2_configurable.__init__:193",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Checkpointing",
     "description": "Save model_best.model when validation criterion MA improves."
   },
   "save_final_checkpoint": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:127 | nnUNetTrainerV2_configurable.__init__:194",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Checkpointing",
     "description": "Save model_final_checkpoint.model at end of training."
   },
   "loss_function": {
     "location": "nnUNetTrainer.py \u2192 __init__:108 | nnUNetTrainerV2_configurable.__init__:125",
     "default_value": "DC_and_CE_loss",
-    "value_range": ["DC_and_CE_loss", "DC_and_topk_loss", "GDL_and_CE_loss", "DC_and_BCE_loss", "SoftDiceLoss", "RobustCrossEntropyLoss"],
+    "value_range": [
+      "DC_and_CE_loss",
+      "DC_and_topk_loss",
+      "GDL_and_CE_loss",
+      "DC_and_BCE_loss",
+      "SoftDiceLoss",
+      "RobustCrossEntropyLoss"
+    ],
     "category": "Loss Function",
     "description": "Combined SoftDice + CrossEntropy loss. Wrapped with MultipleOutputLoss2 in nnUNetTrainerV2 for deep supervision."
   },
   "batch_dice": {
     "location": "nnUNetTrainer.py \u2192 __init__:107 | nnUNetTrainerV2_configurable.__init__:86",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Loss Function",
     "description": "Compute Dice loss pooling across the entire batch (pseudo-volume) rather than per sample.",
     "active_value": "true"
@@ -259,7 +313,10 @@
   "dice_do_bg": {
     "location": "nnUNetTrainer.py \u2192 __init__:108 | nnUNetTrainerV2_configurable.__init__:119",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Loss Function",
     "description": "Include background class (index 0) in Dice computation. False improves focus on foreground."
   },
@@ -281,14 +338,20 @@
   "square_dice": {
     "location": "dice_loss.py \u2192 DC_and_CE_loss.__init__:305 | nnUNetTrainerV2_configurable.__init__:122",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Loss Function",
     "description": "Use SoftDiceLossSquared (Milletari et al.) instead of standard SoftDiceLoss."
   },
   "log_dice": {
     "location": "dice_loss.py \u2192 DC_and_CE_loss.__init__:305 | nnUNetTrainerV2_configurable.__init__:123",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Loss Function",
     "description": "Apply -log transform to the Dice loss to emphasize hard examples."
   },
@@ -302,7 +365,10 @@
   "deep_supervision_enabled": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:158 | nnUNetTrainerV2_configurable.__init__:128 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:618",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Deep Supervision",
     "description": "Enable multi-scale deep supervision outputs from the Generic_UNet decoder."
   },
@@ -365,7 +431,11 @@
   "norm_op": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:143,148 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:579,583",
     "default_value": "InstanceNorm3d (3D) / InstanceNorm2d (2D)",
-    "value_range": ["InstanceNorm3d", "BatchNorm3d", "GroupNorm"],
+    "value_range": [
+      "InstanceNorm3d",
+      "BatchNorm3d",
+      "GroupNorm"
+    ],
     "category": "Network Architecture",
     "description": "Normalization layer applied after each convolution."
   },
@@ -379,7 +449,10 @@
   "norm_op_affine": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:150 | nnUNetTrainerV2_configurable.__init__:134 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:585",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Network Architecture",
     "description": "Learn affine scale (gamma) and shift (beta) parameters in InstanceNorm."
   },
@@ -393,14 +466,23 @@
   "dropout_in_localization": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:158 | nnUNetTrainerV2_configurable.__init__:136 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:619",
     "default_value": "false (nnUNetTrainerV2) | true (nnUNetTrainerV2_configurable default)",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Network Architecture",
     "description": "Apply dropout in the decoder/localization path. When false, dropout_p is forced to 0.0 in decoder."
   },
   "nonlin": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:152 | nnUNetTrainerV2_configurable.__init__:137 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:589-594",
     "default_value": "nn.LeakyReLU",
-    "value_range": ["nn.LeakyReLU", "nn.ReLU", "nn.ELU", "nn.GELU", "nn.Mish"],
+    "value_range": [
+      "nn.LeakyReLU",
+      "nn.ReLU",
+      "nn.ELU",
+      "nn.GELU",
+      "nn.Mish"
+    ],
     "category": "Network Architecture",
     "description": "Activation function applied after each normalization layer."
   },
@@ -414,21 +496,30 @@
   "convolutional_pooling": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:158 | nnUNetTrainerV2_configurable.__init__:139 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:625",
     "default_value": "false (nnUNetTrainerV2) | true (nnUNetTrainerV2_configurable default)",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Network Architecture",
     "description": "Use strided convolution instead of MaxPooling for downsampling."
   },
   "convolutional_upsampling": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_network:159 | nnUNetTrainerV2_configurable.__init__:140 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:626",
     "default_value": "false (nnUNetTrainerV2) | true (nnUNetTrainerV2_configurable default)",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Network Architecture",
     "description": "Use transposed convolution instead of bilinear/trilinear interpolation for upsampling."
   },
   "seg_output_use_bias": {
     "location": "generic_UNet.py \u2192 Generic_UNet.__init__:193 | nnUNetTrainerV2_configurable.__init__:141",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Network Architecture",
     "description": "Add bias to the final segmentation output convolution layer."
   },
@@ -442,14 +533,20 @@
   "upscale_logits": {
     "location": "generic_UNet.py \u2192 Generic_UNet.__init__:191 | nnUNetTrainerV2.py \u2192 initialize_network:159 | nnUNetTrainerV2_configurable.py \u2192 initialize_network:624",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Network Architecture",
     "description": "Upscale all deep supervision outputs to full resolution before loss computation. Default false."
   },
   "do_elastic": {
     "location": "default_data_augmentation.py:43 | overridden in nnUNetTrainerV2.py \u2192 setup_DA_params:385 | nnUNetTrainerV2_configurable.__init__:146",
     "default_value": "true (default) | false (nnUNetTrainerV2 and subclasses)",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Enable elastic deformation augmentation. Disabled in nnUNetTrainerV2 and subclasses."
   },
@@ -477,7 +574,10 @@
   "do_scaling": {
     "location": "default_data_augmentation.py:47 | nnUNetTrainerV2_configurable.__init__:150",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Enable random scaling augmentation."
   },
@@ -498,14 +598,20 @@
   "independent_scale_factor_for_each_axis": {
     "location": "default_data_augmentation.py:49 | nnUNetTrainerV2_configurable.__init__:153",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Scale each spatial axis independently rather than uniformly."
   },
   "do_rotation": {
     "location": "default_data_augmentation.py:54 | nnUNetTrainerV2_configurable.__init__:154",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Enable random rotation augmentation."
   },
@@ -554,7 +660,10 @@
   "do_gamma": {
     "location": "default_data_augmentation.py:64 | nnUNetTrainerV2_configurable.__init__:161",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Enable gamma augmentation (power-law intensity transform)."
   },
@@ -568,7 +677,10 @@
   "gamma_retain_stats": {
     "location": "default_data_augmentation.py:65 | nnUNetTrainerV2_configurable.__init__:163",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Rescale gamma-transformed image to match original mean and std."
   },
@@ -589,7 +701,10 @@
   "do_mirror": {
     "location": "default_data_augmentation.py:69 | overridden in nnUNetTrainerV2_fast.py \u2192 setup_DA_params:16 | nnUNetTrainerV2_configurable.__init__:170",
     "default_value": "true (default) | false (nnUNetTrainerV2_fast and configurable)",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Enable random mirroring augmentation during training and TTA during inference."
   },
@@ -603,21 +718,32 @@
   "dummy_2D": {
     "location": "default_data_augmentation.py:72 | nnUNetTrainerV2_configurable.__init__:172",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Treat 3D patches as 2D slices for augmentation; used for highly anisotropic data."
   },
   "border_mode_data": {
     "location": "default_data_augmentation.py:74 | nnUNetTrainerV2_configurable.__init__:173",
     "default_value": "constant",
-    "value_range": ["constant", "nearest", "reflect", "wrap"],
+    "value_range": [
+      "constant",
+      "nearest",
+      "reflect",
+      "wrap"
+    ],
     "category": "Data Augmentation",
     "description": "Border handling mode for spatial transform (rotation/scaling/elastic)."
   },
   "do_additive_brightness": {
     "location": "default_data_augmentation.py:76 | nnUNetTrainerV2_configurable.__init__:166",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Augmentation",
     "description": "Enable additive brightness augmentation (forwarded via data_aug_params to moreDA)."
   },
@@ -716,14 +842,20 @@
   "unpack_data": {
     "location": "nnUNetTrainer.py \u2192 __init__:76",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Loading",
     "description": "Decompress NPZ files to NPY before training for faster I/O at the cost of disk space."
   },
   "use_nondetMultiThreadedAugmenter": {
     "location": "nnUNetTrainerV2.py \u2192 initialize:112 | nnUNetTrainerV2_configurable.py \u2192 initialize:555",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Data Loading",
     "description": "Use NonDetMultiThreadedAugmenter (faster but non-deterministic) instead of standard MultiThreadedAugmenter."
   },
@@ -751,14 +883,20 @@
   "val_do_mirroring": {
     "location": "nnUNetTrainerV2.py \u2192 validate:182 | overridden in nnUNetTrainerV2_fast.py \u2192 validate:22",
     "default_value": "true (nnUNetTrainerV2) | false (nnUNetTrainerV2_fast and subclasses)",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Inference & Validation",
     "description": "Enable test-time augmentation (TTA) via mirroring during full validation. Forced to false in fast trainers."
   },
   "val_use_sliding_window": {
     "location": "nnUNetTrainer.py \u2192 validate:526",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Inference & Validation",
     "description": "Use sliding window inference for full-resolution validation (vs fully convolutional)."
   },
@@ -772,28 +910,41 @@
   "val_use_gaussian": {
     "location": "nnUNetTrainer.py \u2192 validate:526",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Inference & Validation",
     "description": "Apply Gaussian importance weighting map in sliding window to reduce border artifacts."
   },
   "val_save_softmax": {
     "location": "nnUNetTrainer.py \u2192 validate:527",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Inference & Validation",
     "description": "Save softmax probability maps as NPZ files alongside hard segmentations."
   },
   "val_all_in_gpu": {
     "location": "nnUNetTrainer.py \u2192 validate:528",
     "default_value": "false",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Inference & Validation",
     "description": "Keep aggregated softmax on GPU throughout sliding window (requires sufficient VRAM)."
   },
   "inference_pad_border_mode": {
     "location": "nnUNetTrainer.py \u2192 __init__:118 | nnUNetTrainerV2_configurable.__init__:199",
     "default_value": "constant",
-    "value_range": ["constant", "reflect", "edge"],
+    "value_range": [
+      "constant",
+      "reflect",
+      "edge"
+    ],
     "category": "Inference & Validation",
     "description": "Padding mode applied at image borders during inference."
   },
@@ -821,7 +972,10 @@
   "run_postprocessing_on_folds": {
     "location": "nnUNetTrainer.py \u2192 validate:529",
     "default_value": "true",
-    "value_range": [true, false],
+    "value_range": [
+      true,
+      false
+    ],
     "category": "Inference & Validation",
     "description": "Run connected component postprocessing (keep largest component per class) after validation."
   },
@@ -929,6 +1083,6 @@
     "value_range": "[2, 32]",
     "category": "Custom Trainer (fast)",
     "description": "Batch size forced to 16 by nnUNetTrainerV2_fast and nnUNetTrainerV2_configurable, overriding plans-derived batch size.",
-    "active_value": 16
+    "active_value": 1
   }
 }
