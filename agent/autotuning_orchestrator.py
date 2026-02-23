@@ -799,7 +799,7 @@ class PipelineManager:
 #!/bin/bash
 #SBATCH --job-name={job_name}
 #SBATCH --partition=gpu-h200-35g-ia-ellis
-#SBATCH --time=3-00:00:00
+#SBATCH --time=0-08:00:00
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=512G
