@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=nnunet_val_grp
-#SBATCH --partition=gpu-b300-288g-ellis
+#SBATCH --partition=gpu-h200-35g-ia
 #SBATCH --time=8:00:00
-#SBATCH --gres=gpu:b300:1
+#SBATCH --gres=gpu:h200_2g.35gb:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --output=logs/validate_grp_task%x_fold%a_%j.out
 #SBATCH --error=logs/validate_grp_task%x_fold%a_%j.err
 
@@ -74,6 +74,7 @@ uv run nnUNet_train \
     "${FOLD}" \
     -p "${PLANS}" \
     --validation_only \
+    --npz \
     ${VALBEST_FLAG}
 
 echo ""

@@ -212,7 +212,7 @@ class DataLoader3D(SlimDataLoaderBase):
 
         k = list(self._data.keys())[0]
         if isfile(self._data[k]['data_file'][:-4] + ".npy"):
-            case_all_data = np.load(self._data[k]['data_file'][:-4] + ".npy", self.memmap_mode)
+            case_all_data = np.load(self._data[k]['data_file'][:-4] + ".npy", self.memmap_mode, allow_pickle=True)
         else:
             case_all_data = np.load(self._data[k]['data_file'])['data']
         num_color_channels = case_all_data.shape[0] - 1
@@ -242,7 +242,7 @@ class DataLoader3D(SlimDataLoaderBase):
             # cases are stored as npz, but we require unpack_dataset to be run. This will decompress them into npy
             # which is much faster to access
             if isfile(self._data[i]['data_file'][:-4] + ".npy"):
-                case_all_data = np.load(self._data[i]['data_file'][:-4] + ".npy", self.memmap_mode)
+                case_all_data = np.load(self._data[i]['data_file'][:-4] + ".npy", self.memmap_mode, allow_pickle=True)
             else:
                 case_all_data = np.load(self._data[i]['data_file'])['data']
 
@@ -431,7 +431,7 @@ class DataLoader2D(SlimDataLoaderBase):
 
         k = list(self._data.keys())[0]
         if isfile(self._data[k]['data_file'][:-4] + ".npy"):
-            case_all_data = np.load(self._data[k]['data_file'][:-4] + ".npy", self.memmap_mode)
+            case_all_data = np.load(self._data[k]['data_file'][:-4] + ".npy", self.memmap_mode, allow_pickle=True)
         else:
             case_all_data = np.load(self._data[k]['data_file'])['data']
         num_color_channels = case_all_data.shape[0] - num_seg
@@ -465,7 +465,7 @@ class DataLoader2D(SlimDataLoaderBase):
                 # lets hope you know what you're doing
                 case_all_data = np.load(self._data[i]['data_file'][:-4] + ".npz")['data']
             else:
-                case_all_data = np.load(self._data[i]['data_file'][:-4] + ".npy", self.memmap_mode)
+                case_all_data = np.load(self._data[i]['data_file'][:-4] + ".npy", self.memmap_mode, allow_pickle=True)
 
             # this is for when there is just a 2d slice in case_all_data (2d support)
             if len(case_all_data.shape) == 3:

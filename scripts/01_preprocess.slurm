@@ -1,9 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=nnunet_preprocess
-#SBATCH --partition=batch-milan
-#SBATCH --time=12:00:00
+#SBATCH --partition=gpu-b300-288g-ellis
+#SBATCH --time=5-00:00:00
+#SBATCH --gres=gpu:b300:1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --mem=512G
 #SBATCH --output=logs/preprocess_%j.out
 #SBATCH --error=logs/preprocess_%j.err
 
@@ -14,7 +15,7 @@
 set -euo pipefail
 
 REPO_DIR="/scratch/work/tianmid1/nnUNet_cust"
-DATA_BASE="/m/triton/scratch/elec/t41026-hintlab/tianmid1/data"
+DATA_BASE="/home/tianmid1/tianmid1/t41026-hintlab/tianmid1/data"
 
 export nnUNet_raw_data_base="${DATA_BASE}"
 export nnUNet_preprocessed="${DATA_BASE}/nnUNet_preprocessed"

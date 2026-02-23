@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=nnunet_train_fast
-#SBATCH --partition=gpu-b300-288g-ellis
+#SBATCH --partition=gpu-h200-141g-ellis
 #SBATCH --time=5-00:00:00
-#SBATCH --gres=gpu:b300:1
+#SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=1024G
 #SBATCH --output=logs/train_fast_fold%a_%j.out

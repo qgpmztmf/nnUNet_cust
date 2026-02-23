@@ -41,3 +41,8 @@ nnUNet_install_pretrained_model_from_zip = "nnunet.inference.pretrained_models.d
 nnUNet_change_trainer_class = "nnunet.inference.change_trainer:main"
 nnUNet_evaluate_folder = "nnunet.evaluation.evaluator:nnunet_evaluate_folder"
 nnUNet_plot_task_pngs = "nnunet.utilities.overlay_plots:entry_point_generate_overlay"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

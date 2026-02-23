@@ -9,7 +9,7 @@ class nnUNetTrainerV2_fast(nnUNetTrainerV2):
 
         self.max_num_epochs = 1000
         self.num_batches_per_epoch = 32
-        self.num_val_batches_per_epoch = 4
+        self.num_val_batches_per_epoch = 1
 
     def setup_DA_params(self):
         super().setup_DA_params()

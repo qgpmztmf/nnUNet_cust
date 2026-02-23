@@ -17,7 +17,7 @@
 End-to-end nnUNet v1 pipeline for TotalSegmentator medical image segmentation on the Triton HPC cluster.
 
 ## Key Paths
-- **Repo:** `/scratch/work/tianmid1/nnUNet_cust` (also mirrored at `/m/triton/work/tianmid1/nnUNet_cust`)
+- **Repo:** `/home/tianmid1/tianmid1/t41026-hintlab/tianmid1/nnUNet_cust`
 - **Data base:** `/m/triton/scratch/elec/t41026-hintlab/tianmid1/data`
   - Raw data: `.../data/nnUNet_raw_data/`
   - Preprocessed: `.../data/nnUNet_preprocessed/`

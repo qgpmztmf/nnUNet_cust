@@ -129,3 +129,7 @@ logs/
 *.hdf5
 *.h5
 
+# SLURM job output files in repo root
+*.err
+*.out
+

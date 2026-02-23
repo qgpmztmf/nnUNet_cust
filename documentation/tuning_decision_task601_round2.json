@@ -1,0 +1,48 @@
+{
+  "diagnosis": {
+    "global_issue": "No performance metrics available from test or validation results. This is likely the first training iteration or training failed to produce evaluation outputs. Without performance data, tuning must be based on general best practices for multi-class segmentation (Task601_TotalSegmentatorV1).",
+    "class_specific_issues": {}
+  },
+  "tuning_decision": {
+    "initial_lr_nnUNetTrainerV2": {
+      "current_value": "0.007",
+      "new_value": "0.01",
+      "change_type": "increase",
+      "reason": "Current LR (0.007) is below default (0.01). For initial training with no performance data, resetting to default provides stable baseline. SGD with poly-LR benefits from higher initial LR for faster convergence.",
+      "expected_effect": "Faster initial convergence, better gradient flow in early epochs"
+    },
+    "batch_dice": {
+      "current_value": "false",
+      "new_value": "true",
+      "change_type": "enable",
+      "reason": "Batch Dice (true) is nnUNet default and generally performs better for multi-class segmentation by computing Dice across batch dimension rather than per sample. Current setting (false) may reduce training stability.",
+      "expected_effect": "Improved training stability, better gradient estimates, more consistent loss computation"
+    },
+    "oversample_foreground_percent": {
+      "current_value": "0.66",
+      "new_value": "0.33",
+      "change_type": "decrease",
+      "reason": "Current value (0.66) is double the default (0.33). For TotalSegmentator with many classes, excessive foreground oversampling may bias training toward foreground at expense of background learning. Reset to default for balanced sampling.",
+      "expected_effect": "More balanced batch composition, better background/foreground trade-off"
+    },
+    "weight_ce": {
+      "current_value": "1.5",
+      "new_value": "1.0",
+      "change_type": "decrease",
+      "reason": "Current CE weight (1.5) is higher than default (1.0). Without performance data indicating class imbalance issues, resetting to default 1:1 Dice:CE ratio provides balanced optimization.",
+      "expected_effect": "Balanced Dice and CE contributions, prevents CE dominance in early training"
+    },
+    "num_batches_per_epoch": {
+      "current_value": "350",
+      "new_value": "250",
+      "change_type": "decrease",
+      "reason": "Current value (350) is higher than NetworkTrainer default (250). For initial training, reducing iterations per epoch provides more frequent validation and checkpointing without excessive computation per epoch.",
+      "expected_effect": "More frequent validation updates, better epoch-wise monitoring, reduced memory pressure"
+    }
+  },
+  "training_strategy": {
+    "priority_level": "medium",
+    "risk_level": "low",
+    "retrain_required": true
+  }
+}
