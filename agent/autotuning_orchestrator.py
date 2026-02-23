@@ -4,12 +4,22 @@ autotuning_orchestrator.py
 ==========================
 Multi-agent pipeline orchestrator for nnUNet hyperparameter auto-tuning.
 
-Pipeline (per round):
-  Step 1 — agent_hp-autotuning   → tuning_decision_taskXXX_roundN.json
-  Step 2 — agent_hp-checker      → checked_hyperparameters.json
-  Step 3 — agent_modify_hp       → updated hyperparameter_reference.json
-  Step 4 — agent_training_launcher → train_taskXXX_roundN.sh
-  Step 5 — (optional) execute training script
+Pipeline:
+  Round 1  (no agent — train with hyperparameter_reference.json as-is):
+    Step 4  — training_launcher → train_taskXXX_round1.sh / .slurm
+    Step 4c — eval script       → eval_taskXXX_round1.slurm
+                                  (run after training: generates summary JSONs
+                                   and copies them to runs/round_1_<ts>/)
+    Step 5  — (optional) execute training
+
+  Round 2+ (agent-assisted — reads previous round results):
+    Step 1  — hp_autotuning     (reads runs/round_N-1_<ts>/{test,val}_summary.json)
+                                → tuning_decision_taskXXX_roundN.json
+    Step 2  — hp_checker        → checked_hyperparameters.json
+    Step 3  — modify_hp         → updated hyperparameter_reference.json
+    Step 4  — training_launcher → train_taskXXX_roundN.sh / .slurm
+    Step 4c — eval script       → eval_taskXXX_roundN.slurm
+    Step 5  — (optional) execute training
 
 Usage:
   python autotuning_orchestrator.py [options]
@@ -24,6 +34,9 @@ Options:
   --test-summary  Path to test results summary JSON
   --val-summary   Path to validation summary JSON
   --hp-ref        Path to hyperparameter_reference.json
+  --use-test-data Run nnUNet_predict + nnUNet_evaluate_folder on the test set
+                  (imagesTs/ + labelsTs/ from dataset.json) in the eval script.
+                  Requires GPU. Without this flag only validation metrics are produced.
 
 All per-round outputs are written to:
   agent/runs/round_N_<timestamp>/
@@ -45,6 +58,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -70,16 +84,18 @@ load_dotenv(_ENV_FILE, override=False)
 
 AGENT_DIR  = Path(__file__).resolve().parent           # nnUNet_cust/agent/
 REPO_ROOT  = AGENT_DIR.parent                          # nnUNet_cust/
-DOC_DIR    = REPO_ROOT / "documentation"
+DOC_DIR    = AGENT_DIR / "doc"
 LOG_DIR    = AGENT_DIR / "logs"
 RUNS_DIR   = AGENT_DIR / "runs"
 PROMPT_DIR = AGENT_DIR / "prompts"
 
 PROMPTS: dict[str, Path] = {
-    "hp_autotuning":    PROMPT_DIR / "agent_hp-autotuning.md",
-    "hp_checker":       PROMPT_DIR / "agent-hp-checker.md",
-    "modify_hp":        PROMPT_DIR / "agent-modify-hy.md",
-    "training_launcher": PROMPT_DIR / "agent-training-launcher.md",
+    # setup — run once to establish the parameter list
+    "hp_checker":        PROMPT_DIR / "setup"          / "agent-hp-checker.md",
+    # training-loop — run every round
+    "hp_autotuning":     PROMPT_DIR / "training-loop"  / "agent_hp-autotuning.md",
+    "modify_hp":         PROMPT_DIR / "training-loop"  / "agent-modify-hy.md",
+    "training_launcher": PROMPT_DIR / "training-loop"  / "agent-training-launcher.md",
 }
 
 # ── API / model settings ──────────────────────────────────────────────────────
@@ -383,17 +399,20 @@ class PipelineManager:
         provider: str = PROVIDER_ANTHROPIC,
         auto_train: bool = False,
         generate_slurm: bool = False,
+        force_round: Optional[int] = None,
+        use_test_data: bool = False,
     ) -> None:
-        self.task          = task
-        self.doc_dir       = doc_dir
-        self.log_dir       = log_dir
-        self.runs_dir      = runs_dir
-        self.model         = model
-        self.provider      = provider
-        self.auto_train    = auto_train
+        self.task           = task
+        self.doc_dir        = doc_dir
+        self.log_dir        = log_dir
+        self.runs_dir       = runs_dir
+        self.model          = model
+        self.provider       = provider
+        self.auto_train     = auto_train
         self.generate_slurm = generate_slurm
+        self.use_test_data  = use_test_data
 
-        self.round = self._detect_next_round()
+        self.round = force_round if force_round is not None else self._detect_next_round()
 
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         self.run_dir = runs_dir / f"round_{self.round}_{ts}"
@@ -482,6 +501,76 @@ class PipelineManager:
         # Return the one with the highest round index
         candidates.sort(key=lambda t: t[0])
         return candidates[-1][1]
+
+    def _find_previous_round_results(
+        self,
+        global_test: Path,
+        global_val: Path,
+    ) -> tuple[Path, Path]:
+        """
+        Return (test_summary_path, val_summary_path) for the most recently
+        completed round.
+
+        Search order:
+          1. agent/runs/round_N_<ts>/{test,val}_summary.json  (per-round copy)
+          2. Global nnUNet results path supplied as fallback.
+
+        The per-round copies are written by _collect_results_to_run_dir() after
+        training completes.  If training was submitted manually (no --auto-train),
+        you can copy the summaries there yourself, or the orchestrator will fall
+        back to the global path.
+        """
+        if self.runs_dir.exists():
+            run_pat = re.compile(r"^round_(\d+)")
+            candidates: list[tuple[int, Path]] = []
+            for entry in self.runs_dir.iterdir():
+                m = run_pat.match(entry.name)
+                if m and int(m.group(1)) < self.round:
+                    candidates.append((int(m.group(1)), entry))
+            if candidates:
+                candidates.sort(key=lambda t: t[0])
+                prev_dir  = candidates[-1][1]
+                prev_test = prev_dir / "test_summary.json"
+                prev_val  = prev_dir / "val_summary.json"
+                if prev_test.exists() or prev_val.exists():
+                    self.log.info(
+                        "Reading previous-round results from: %s", prev_dir
+                    )
+                    return (
+                        prev_test if prev_test.exists() else global_test,
+                        prev_val  if prev_val.exists()  else global_val,
+                    )
+
+        self.log.info(
+            "No per-round results found in %s — using global nnUNet paths",
+            self.runs_dir,
+        )
+        return global_test, global_val
+
+    def _collect_results_to_run_dir(
+        self,
+        test_summary_path: Path,
+        val_summary_path: Path,
+    ) -> None:
+        """
+        Copy nnUNet summary JSONs into this round's run_dir.
+
+        This creates  run_dir/test_summary.json  and  run_dir/val_summary.json
+        so that the next round's agent can find them by scanning agent/runs/
+        instead of relying on a fixed global path.
+        """
+        for src, dst_name in [
+            (test_summary_path, "test_summary.json"),
+            (val_summary_path,  "val_summary.json"),
+        ]:
+            if src.exists():
+                dst = self.run_dir / dst_name
+                shutil.copy2(src, dst)
+                self.log.info("Collected results → %s", dst)
+            else:
+                self.log.warning(
+                    "Results not found (training may not have completed): %s", src
+                )
 
     # ── pipeline steps ────────────────────────────────────────────────────────
 
@@ -714,8 +803,8 @@ class PipelineManager:
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=512G
-#SBATCH --output={log_stem}_fold%a_%j.out
-#SBATCH --error={log_stem}_fold%a_%j.err
+#SBATCH --output={self.run_dir}/{log_stem}_fold%a_%j.out
+#SBATCH --error={self.run_dir}/{log_stem}_fold%a_%j.err
 
 # Auto-generated SLURM training script — Round {round_n}
 # Task:    {self.task}
@@ -734,7 +823,7 @@ class PipelineManager:
 
 set -euo pipefail
 
-REPO_DIR="/scratch/work/tianmid1/nnUNet_cust"
+REPO_DIR="{REPO_ROOT}"
 DATA_BASE="/m/triton/scratch/elec/t41026-hintlab/tianmid1/data"
 
 export nnUNet_raw_data_base="${{DATA_BASE}}"
@@ -793,6 +882,201 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
             "  Submit with:  sbatch --array=0-4 %s", slurm_path
         )
         return slurm_path
+
+    def step4c_generate_eval_script(self) -> Path:
+        """
+        Generate a SLURM script that runs post-training evaluation.
+
+        Without --use-test-data (default):
+          Runs nnUNet_determine_postprocessing, which consolidates per-fold
+          validation predictions and writes:
+            cv_niftis_postprocessed/summary.json  → val_summary.json
+          No GPU required.
+
+        With --use-test-data:
+          Also runs nnUNet_predict on imagesTs/ (all 5 folds ensemble) then
+          nnUNet_evaluate_folder against labelsTs/ to produce test_summary.json.
+          Requires GPU (h200).
+
+        Both summaries are copied into this round's run_dir so the next
+        round's agent can find them by scanning agent/runs/.
+
+        Submit this script AFTER all training folds have completed:
+          sbatch eval_taskXXX_roundN.slurm
+        """
+        self.log.info("── STEP 4c: Generate Eval Script ────────────────────────")
+
+        task_id     = self._task_id()
+        round_n     = self.round
+        task_suffix = self.task.split("_", 1)[-1] if "_" in self.task else self.task
+        run_dir_str = str(self.run_dir)
+        job_name    = f"nnunet_eval_{task_id}_r{round_n}"
+        log_stem    = f"eval_{task_id}_round{round_n}"
+
+        # SBATCH resource headers differ: GPU needed only for test-set inference
+        if self.use_test_data:
+            sbatch_resources = (
+                f"#SBATCH --partition=gpu-h200-141g-ellis\n"
+                f"#SBATCH --time=0-08:00:00\n"
+                f"#SBATCH --gres=gpu:h200:1\n"
+                f"#SBATCH --cpus-per-task=16\n"
+                f"#SBATCH --mem=128G"
+            )
+            test_data_note = (
+                "#   $RESULTS_FOLDER/.../test_predictions/summary.json  → test_summary.json\n"
+                "# (test-set inference enabled via --use-test-data)"
+            )
+        else:
+            sbatch_resources = (
+                f"#SBATCH --partition=batch\n"
+                f"#SBATCH --time=0-04:00:00\n"
+                f"#SBATCH --cpus-per-task=8\n"
+                f"#SBATCH --mem=64G"
+            )
+            test_data_note = "# (no test-set inference; run with --use-test-data to enable)"
+
+        # Build the test-set inference block (only when use_test_data=True)
+        if self.use_test_data:
+            test_block = f"""
+# ── Step 2: Test-set inference + evaluation ───────────────────────────────────
+IMAGES_TS="${{DATA_BASE}}/nnUNet_raw_data/Task${{TASK}}_{task_suffix}/imagesTs"
+LABELS_TS="${{DATA_BASE}}/nnUNet_raw_data/Task${{TASK}}_{task_suffix}/labelsTs"
+PRED_DIR="${{MODEL_DIR}}/test_predictions"
+
+mkdir -p "${{PRED_DIR}}"
+
+echo "Running nnUNet_predict on test set..."
+uv run nnUNet_predict \\
+    -i "${{IMAGES_TS}}" \\
+    -o "${{PRED_DIR}}" \\
+    -t "${{TASK}}" \\
+    -m "${{NETWORK}}" \\
+    -tr "${{TRAINER}}" \\
+    -p "${{PLANS}}" \\
+    -f 0 1 2 3 4
+
+echo ""
+echo "nnUNet_predict complete: $(date)"
+echo ""
+
+echo "Running nnUNet_evaluate_folder on test predictions..."
+uv run nnUNet_evaluate_folder \\
+    -ref "${{LABELS_TS}}" \\
+    -pred "${{PRED_DIR}}"
+
+echo ""
+echo "nnUNet_evaluate_folder complete: $(date)"
+echo ""
+
+# ── Step 3: Copy summaries into run_dir for the next agent round ──────────────
+"""
+            copy_test_block = f"""\
+TEST_SUMMARY="${{PRED_DIR}}/summary.json"
+
+if [[ -f "${{TEST_SUMMARY}}" ]]; then
+    cp "${{TEST_SUMMARY}}" "${{RUN_DIR}}/test_summary.json"
+    echo "Copied → ${{RUN_DIR}}/test_summary.json"
+else
+    echo "WARNING: test_summary not found: ${{TEST_SUMMARY}}"
+fi
+"""
+        else:
+            test_block = "\n# ── Step 2: Copy summaries into run_dir for the next agent round ──────────────\n"
+            copy_test_block = """\
+TEST_SUMMARY="${MODEL_DIR}/summary.json"
+
+if [[ -f "${TEST_SUMMARY}" ]]; then
+    cp "${TEST_SUMMARY}" "${RUN_DIR}/test_summary.json"
+    echo "Copied → ${RUN_DIR}/test_summary.json"
+else
+    echo "INFO: test_summary not found (use --use-test-data for explicit test inference)"
+fi
+"""
+
+        eval_content = f"""\
+#!/bin/bash
+#SBATCH --job-name={job_name}
+{sbatch_resources}
+#SBATCH --output={log_stem}_%j.out
+#SBATCH --error={log_stem}_%j.err
+
+# Auto-generated evaluation script — Round {round_n}
+# Task:    {self.task}
+# Network: 3d_fullres
+# Trainer: nnUNetTrainerV2_configurable
+# Plans:   nnUNetPlansv2.1
+#
+# Run AFTER ALL training folds have completed:
+#   sbatch {log_stem}.slurm
+#
+# Produces:
+#   $RESULTS_FOLDER/.../cv_niftis_postprocessed/summary.json  → val_summary.json
+{test_data_note}
+# Both are copied into the run directory for the next agent round.
+
+set -euo pipefail
+
+REPO_DIR="{REPO_ROOT}"
+DATA_BASE="/m/triton/scratch/elec/t41026-hintlab/tianmid1/data"
+RUN_DIR="{run_dir_str}"
+
+export nnUNet_raw_data_base="${{DATA_BASE}}"
+export nnUNet_preprocessed="${{DATA_BASE}}/nnUNet_preprocessed"
+export RESULTS_FOLDER="${{DATA_BASE}}/nnUNet_results"
+
+TASK="{task_id}"
+NETWORK="3d_fullres"
+TRAINER="nnUNetTrainerV2_configurable"
+PLANS="nnUNetPlansv2.1"
+
+MODEL_DIR="${{RESULTS_FOLDER}}/nnUNet/${{NETWORK}}/Task${{TASK}}_{task_suffix}/${{TRAINER}}__${{PLANS}}"
+
+echo "=== nnUNet Evaluation Round {round_n} ==="
+echo "Task:    Task${{TASK}}_{task_suffix}"
+echo "Network: ${{NETWORK}}"
+echo "Trainer: ${{TRAINER}}"
+echo "Model:   ${{MODEL_DIR}}"
+echo "Run dir: ${{RUN_DIR}}"
+echo "Started: $(date)"
+echo ""
+
+cd "${{REPO_DIR}}"
+
+# ── Step 1: Consolidate folds and determine postprocessing ────────────────────
+echo "Running nnUNet_determine_postprocessing..."
+uv run nnUNet_determine_postprocessing \\
+    -m "${{NETWORK}}" \\
+    -t "${{TASK}}" \\
+    -tr "${{TRAINER}}" \\
+    -pl "${{PLANS}}"
+
+echo ""
+echo "nnUNet_determine_postprocessing complete: $(date)"
+echo ""
+{test_block}
+VAL_SUMMARY="${{MODEL_DIR}}/cv_niftis_postprocessed/summary.json"
+
+if [[ -f "${{VAL_SUMMARY}}" ]]; then
+    cp "${{VAL_SUMMARY}}" "${{RUN_DIR}}/val_summary.json"
+    echo "Copied → ${{RUN_DIR}}/val_summary.json"
+else
+    echo "WARNING: val_summary not found: ${{VAL_SUMMARY}}"
+fi
+
+{copy_test_block}
+echo ""
+echo "=== Evaluation round {round_n} complete: $(date) ==="
+"""
+
+        eval_name = f"eval_task{task_id}_round{round_n}.slurm"
+        eval_path = self.run_dir / eval_name
+        eval_path.write_text(eval_content, encoding="utf-8")
+        eval_path.chmod(0o755)
+        self.log.info("STEP 4c complete → %s", eval_path)
+        self.log.info(
+            "  Submit AFTER training:  sbatch %s", eval_path
+        )
+        return eval_path
 
     def step5_execute_training(self, script_path: Path, use_slurm: bool = False) -> None:
         """(Optional) Execute or submit the generated training script."""
@@ -868,6 +1152,47 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
         val_summary_path: Path,
         hp_ref_path: Path,
     ) -> None:
+        if self.round == 1:
+            # ── Round 1: no agent ──────────────────────────────────────────────
+            # Train directly with hyperparameter_reference.json as-is.
+            # Steps 1–3 (autotuning / checker / modify) are intentionally skipped.
+            self.log.info(
+                "Round 1: skipping agent steps — "
+                "training with hyperparameter_reference.json as-is"
+            )
+
+            # Step 4 — Generate training script
+            script_path = self.step4_training_launcher(hp_ref_path=hp_ref_path)
+            if self.generate_slurm:
+                self.step4b_generate_slurm(hp_ref_path=hp_ref_path)
+
+            # Step 4c — Generate evaluation script (always)
+            self.step4c_generate_eval_script()
+
+            self.log.info("Training script ready: %s", script_path)
+
+            # Step 5 — (optional) execute / submit
+            if self.auto_train:
+                self.step5_execute_training(
+                    script_path, use_slurm=self.generate_slurm
+                )
+                # Copy nnUNet results into run_dir so round 2's agent can read them
+                self._collect_results_to_run_dir(test_summary_path, val_summary_path)
+            else:
+                self.log.info(
+                    "Training script generated but not executed (--auto-train not set). "
+                    "Submit it manually, then re-invoke the orchestrator for round 2. "
+                    "Tip: copy test_summary.json / val_summary.json into %s so the "
+                    "agent can find per-round results automatically.",
+                    self.run_dir,
+                )
+            return
+
+        # ── Round 2+: agent reads previous round results ──────────────────────
+        effective_test, effective_val = self._find_previous_round_results(
+            test_summary_path, val_summary_path
+        )
+
         # Carry checker result from a previous round into step 1
         previous_checker = self._find_previous_checker_result()
         if previous_checker:
@@ -875,8 +1200,8 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
 
         # Step 1 — HP auto-tuning
         tuning_decision, tuning_path = self.step1_hp_autotuning(
-            test_summary_path   = test_summary_path,
-            val_summary_path    = val_summary_path,
+            test_summary_path   = effective_test,
+            val_summary_path    = effective_val,
             hp_ref_path         = hp_ref_path,
             checker_result_path = previous_checker,
         )
@@ -898,6 +1223,9 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
         if self.generate_slurm:
             self.step4b_generate_slurm(hp_ref_path=updated_ref)
 
+        # Step 4c — Generate evaluation script (always)
+        self.step4c_generate_eval_script()
+
         self.log.info("Training script ready: %s", script_path)
 
         # Step 5 — (optional) execute / submit
@@ -905,6 +1233,8 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
             self.step5_execute_training(
                 script_path, use_slurm=self.generate_slurm
             )
+            # Copy nnUNet results into run_dir so the next round's agent can read them
+            self._collect_results_to_run_dir(test_summary_path, val_summary_path)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -955,6 +1285,16 @@ def _parse_args() -> argparse.Namespace:
         default=1,
         metavar="N",
         help="Number of tuning rounds to run  (default: 1)",
+    )
+    parser.add_argument(
+        "--force-round",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Force a specific round number instead of auto-detecting. "
+            "Useful for re-running or testing a specific round (e.g. --force-round 1)."
+        ),
     )
     parser.add_argument(
         "--test-summary",
@@ -1017,6 +1357,15 @@ def _parse_args() -> argparse.Namespace:
         default=RUNS_DIR,
         metavar="DIR",
         help=f"Runs directory  (default: {RUNS_DIR})",
+    )
+    parser.add_argument(
+        "--use-test-data",
+        action="store_true",
+        help=(
+            "Include test-set inference in the eval script: runs nnUNet_predict on "
+            "imagesTs/ (5-fold ensemble) then nnUNet_evaluate_folder against labelsTs/. "
+            "Requires GPU. Without this flag only cross-validation metrics are produced."
+        ),
     )
     return parser.parse_args()
 
@@ -1084,6 +1433,8 @@ def main() -> None:
         provider       = args.provider,
         auto_train     = args.auto_train,
         generate_slurm = args.slurm,
+        force_round    = args.force_round,
+        use_test_data  = args.use_test_data,
     )
 
     pipeline.run(

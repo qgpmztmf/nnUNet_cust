@@ -9,7 +9,7 @@ applies its recommendations to hyperparameter_reference.json by writing
 Before writing the updated reference file the existing
 ``hyperparameter_reference.json`` is archived as
 ``hyperparameter_reference_round_<N>.json``, where N is the next available
-integer in the documentation directory.
+integer in the agent/doc directory.
 
 Usage
 -----
@@ -17,13 +17,13 @@ Usage
 
     # Example
     uv run python agent/apply_tuning_decision.py \\
-        documentation/tuning_decision_task601_round1.json
+        agent/doc/tuning_decision_task601_round1.json
 
 Arguments
 ---------
 tuning_decision   Path to the tuning-decision JSON (required).
 --doc-dir         Directory that contains hyperparameter_reference.json.
-                  Defaults to  <script_dir>/../documentation/
+                  Defaults to  <script_dir>/doc/
 --dry-run         Print the diff without writing any files.
 """
 
@@ -38,9 +38,9 @@ import sys
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _doc_dir_default() -> str:
-    """Return the documentation/ directory relative to this script."""
+    """Return the agent/doc/ directory relative to this script."""
     return os.path.normpath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "documentation")
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc")
     )
 
 

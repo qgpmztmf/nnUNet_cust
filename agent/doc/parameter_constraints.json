@@ -1,0 +1,60 @@
+{
+  "_description": "Defines which hyperparameters are permanently frozen and which are open for auto-tuning. All agents (HP-checker, HP-autotuning) MUST consult this file before applying any tuning decision.",
+  "_version": "1.0",
+  "frozen": {
+    "_description": "Permanently fixed parameters. HP-checker MUST return false. HP-autotuning MUST NOT include these in tuning_decision under any circumstances. Their active_value in hyperparameter_reference.json is kept in sync with fixed_value here.",
+    "batch_size_forced_fast": {
+      "fixed_value": 16,
+      "unit": "samples per GPU",
+      "reason": "GPU memory and throughput constraint; must match fast-trainer baseline to keep epoch wall-time predictable.",
+      "category": "Custom Trainer (fast)"
+    },
+    "num_batches_per_epoch": {
+      "fixed_value": 32,
+      "unit": "iterations per epoch",
+      "reason": "Epoch granularity fixed to match nnUNetTrainerV2_fast baseline for consistent and fast training cycles.",
+      "category": "Training Loop Control"
+    },
+    "num_val_batches_per_epoch": {
+      "fixed_value": 1,
+      "unit": "iterations per epoch",
+      "reason": "Minimal online validation overhead; keeps epoch time short. Full fold-level validation runs separately.",
+      "category": "Training Loop Control"
+    },
+    "max_num_epochs": {
+      "fixed_value": 40,
+      "unit": "epochs",
+      "reason": "Fixed training budget; prevents runaway training and keeps round-trip time predictable.",
+      "category": "Training Loop Control"
+    }
+  },
+  "tunable": {
+    "_description": "All parameters NOT listed in 'frozen' are candidates for tuning, subject to HP-checker approval (checker must return true). Agents may modify at most 3-5 parameters per round.",
+    "constraints": {
+      "max_changes_per_round": 5,
+      "require_checker_approval": true,
+      "evidence_required": true
+    },
+    "open_categories": [
+      "Optimizer",
+      "Learning Rate Schedule",
+      "Gradient Clipping",
+      "Loss Function",
+      "Deep Supervision",
+      "Data Augmentation",
+      "Data Loading",
+      "Mixed Precision / Reproducibility",
+      "Checkpointing",
+      "Inference & Validation"
+    ],
+    "restricted_categories": {
+      "_description": "Parameters in these categories require extra caution. They may be tuned only when there is strong evidence of a specific failure pattern.",
+      "Network Architecture": "Architecture changes require re-planning and full retraining; use only when structural underfitting/overfitting is confirmed.",
+      "Early Stopping": "Modify only when patience or EMA dynamics are clearly misconfigured.",
+      "Experiment Planning": "Planning parameters affect preprocessing outputs; changes require re-preprocessing the dataset.",
+      "Preprocessing": "Changes require full dataset re-preprocessing before retraining.",
+      "Cross-Validation": "Changing split logic invalidates cross-fold comparability; avoid unless critically necessary.",
+      "Training Loop Control": "num_batches_per_epoch and num_val_batches_per_epoch are FROZEN (see above). max_num_epochs may only be adjusted with explicit justification."
+    }
+  }
+}

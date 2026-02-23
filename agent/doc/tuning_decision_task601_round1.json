@@ -1,0 +1,59 @@
+{
+  "diagnosis": {
+    "global_issue": "Severe small-structure collapse with systematic recall deficit across the 104-class segmentation task. Test-set mean Dice (classes 1-104) is 0.863, but 7 classes fall below 0.70 and 2 classes (38, 39) completely collapse to Dice=0.0 in multiple training folds. Cross-fold mean Dice ranges 0.838\u20130.863 (std=0.009), masking extreme per-class instability: class 37 spans 0.44\u20130.60 across folds, class 38 and 39 produce Dice=0.0 in 2 of 5 folds each. A consistent high-precision/low-recall pattern (class_38 P=0.924 R=0.535; class_39 P=0.918 R=0.606; class_83 P=0.954 R=0.689) confirms the network is not learning to predict rare small structures\u2014it suppresses them to avoid false positives. Root cause: foreground sampling starvation. Structures with fewer than 150 reference voxels are statistically absent from randomly sampled training patches, yielding zero Dice gradient for their class channels across entire training folds.",
+    "class_specific_issues": {
+      "class_37": "Most critical failure. Per-fold Dice spans 0.44\u20130.60; test mean Dice=0.636, Recall=0.647, Precision=0.821. Collapse is consistent across all 5 folds\u2014systemic training failure, not data-split artifact. Very small structure (~1600 voxels reference volume).",
+      "class_38": "Complete absence (Dice=0.0) in fold_0 and fold_3; test Dice=0.638. Highest precision of all failure classes (0.924) with catastrophically low recall (0.535). Network only predicts when very confident\u2014severe under-segmentation driven by foreground starvation.",
+      "class_39": "Complete collapse (Dice=0.0) in fold_2 and fold_3; test Dice=0.704. Precision=0.918, Recall=0.606. Mirrors class_38 pathology: high-confidence under-prediction of a rare small structure that is absent from most training patches.",
+      "class_41": "Persistent under-segmentation across all folds; test Dice=0.662, Recall=0.622, Precision=0.831. Third worst performer overall. Consistent pattern across folds indicates structural difficulty rather than data imbalance alone.",
+      "class_4": "Consistent low performance across all 5 folds (per-fold range 0.632\u20130.695); test Dice=0.686. Small structure with spatial ambiguity\u2014no complete collapse but persistently below acceptable threshold.",
+      "class_83": "Extreme precision-recall imbalance: test Precision=0.954, Recall=0.689, Dice=0.699. Network exclusively predicts when highly certain\u2014foreground false-positive penalty dominates, driving systematic under-segmentation.",
+      "class_11": "Dice=0.752 with only ~98 mean reference voxels per volume\u2014smallest object in dataset. Consistent underperformance across all folds (0.671\u20130.727). Stochastic patch sampling makes gradient signal effectively zero in most batches.",
+      "class_12": "Dice=0.704, Recall=0.671, FDR=0.176. Second smallest object (~100 reference voxels). Both low recall and elevated false discovery rate suggest patch-level confusion with anatomically adjacent background regions.",
+      "class_36": "Per-fold Dice ranges 0.601\u20130.710; test Dice=0.750. Consistent weakness across all folds. Small structure requiring better shape augmentation.",
+      "class_10": "Test Dice=0.756, Recall=0.776, Precision=0.833. Moderate fold variance. Small structure (~1600 voxels) with inconsistent detection pattern."
+    }
+  },
+  "tuning_decision": {
+    "oversample_foreground_percent": {
+      "current_value": 0.33,
+      "new_value": 0.66,
+      "change_type": "increase",
+      "reason": "Classes 38 and 39 produce Dice=0.0 across entire training folds\u2014the network receives zero gradient for these structures because they are absent from randomly sampled patches. Doubling foreground oversampling from 0.33 to 0.66 directly doubles the probability that any foreground voxel (and thus rare small structures) appears in each training batch. This is the single highest-impact intervention for complete class collapse.",
+      "expected_effect": "Eliminate complete class collapse (Dice=0.0) in folds 2 and 3 for classes 38/39. Expected Dice improvement of +0.10 to +0.20 for the 7 critical-failure classes. May marginally reduce performance on high-volume structures due to reduced background-only patch sampling."
+    },
+    "batch_dice": {
+      "current_value": true,
+      "new_value": false,
+      "change_type": "disable",
+      "reason": "With batch_dice=True, Dice loss is computed over the concatenated batch. If classes 38 or 39 are absent from all samples in a batch\u2014highly probable given only ~100 voxels per volume\u2014their Dice gradient is exactly zero. Switching to sample-level Dice (batch_dice=False) ensures loss is computed per sample, so gradient propagates whenever the rare structure appears in any individual sample within the batch.",
+      "expected_effect": "Prevents gradient starvation for rare classes at the batch level. Minor increase in memory and compute (~5-10% overhead for sample-wise Dice computation). Expected Dice improvement of +0.05 to +0.15 for classes 11, 12, 37, 38, 39 by ensuring their gradient is not masked by batch-level aggregation."
+    },
+    "weight_ce": {
+      "current_value": 1.0,
+      "new_value": 1.5,
+      "change_type": "increase",
+      "reason": "The systematic high-precision/low-recall pattern across multiple failure classes (class_38: P=0.924 R=0.535; class_83: P=0.954 R=0.689; class_39: P=0.918 R=0.606) indicates the loss is biased toward suppressing foreground predictions for rare classes. CE loss provides per-voxel gradient independent of class frequency. Increasing its weight relative to Dice raises the penalty for missed rare-class voxels (false negatives), directly counteracting the recall deficit without disrupting Dice-driven boundary sharpness.",
+      "expected_effect": "Recall improvement of +0.05 to +0.15 for classes 38, 39, 83, 41. Modest precision reduction (\u22120.02 to \u22120.05) acceptable given the current precision surplus. Net Dice improvement of +0.03 to +0.10 for recall-limited classes. No expected degradation for well-performing high-volume classes."
+    },
+    "initial_lr_nnUNetTrainerV2": {
+      "current_value": 0.01,
+      "new_value": 0.007,
+      "change_type": "decrease",
+      "reason": "Complete training collapse of entire class channels across full folds (Dice=0 for class 38 in fold_0 and fold_3; class 39 in fold_2 and fold_3) is consistent with optimization instability caused by extremely sparse gradients. An initial LR of 0.01 with SGD momentum can produce gradient oscillation in parameters relevant to rare-class features. A moderate reduction to 0.007 stabilizes descent without significantly extending convergence time given the polynomial LR decay schedule.",
+      "expected_effect": "Reduce fold-level training instability for sparse classes. Classes 38 and 39 should no longer completely collapse in individual folds. Cross-fold Dice variance for classes 37\u201341 expected to decrease. Modest Dice improvement (+0.02 to +0.05) for the most unstable classes. Negligible impact on well-performing high-volume classes."
+    },
+    "num_batches_per_epoch": {
+      "current_value": 250,
+      "new_value": 350,
+      "change_type": "increase",
+      "reason": "With oversample_foreground_percent doubled to 0.66, each batch has higher probability of containing rare structures. However, for structures with only ~90\u2013100 voxels in a volume of millions, even aggressive oversampling leaves gradient exposure low per epoch. Increasing batches per epoch from 250 to 350 provides 40% more gradient updates per epoch, ensuring rare structures receive cumulative training signal within the fixed epoch budget of the fast trainer. Directly amplifies the effect of the oversampling change.",
+      "expected_effect": "More total gradient updates per epoch for all foreground classes. Synergizes with increased oversample_foreground_percent to ensure classes 11, 12, 37\u201339 receive training signal more frequently. Training wall-time per epoch increases ~40%, but convergence epoch count is expected to decrease due to better gradient signal quality."
+    }
+  },
+  "training_strategy": {
+    "priority_level": "high",
+    "risk_level": "medium",
+    "retrain_required": true
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "diagnosis": {
+    "global_issue": "Training failure due to insufficient training epochs. The current configuration has max_num_epochs=1, which means the model only trains for a single epoch. This is insufficient for any meaningful learning, especially for a complex multi-class segmentation task like TotalSegmentatorV1 with 104 anatomical structures. No validation or test results are available because training terminated before proper evaluation could occur.",
+    "class_specific_issues": {}
+  },
+  "tuning_decision": {
+    "max_num_epochs": {
+      "current_value": 1,
+      "new_value": 600,
+      "change_type": "increase",
+      "reason": "Training was terminated after only 1 epoch, preventing any meaningful learning. For TotalSegmentatorV1 (104 classes), standard nnUNet training requires 600-1000 epochs. Setting to 600 provides sufficient training time while being more efficient than the default 1000.",
+      "expected_effect": "Enable proper model convergence, allow validation metrics to be computed, and establish baseline performance for subsequent tuning rounds."
+    },
+    "num_batches_per_epoch": {
+      "current_value": 32,
+      "new_value": 250,
+      "change_type": "increase",
+      "reason": "Current value of 32 batches per epoch is too low for proper gradient updates and loss stabilization. Increasing to the NetworkTrainer default of 250 provides more stable training and better gradient estimation.",
+      "expected_effect": "More stable training loss curves, better gradient estimates, and improved convergence behavior."
+    },
+    "oversample_foreground_percent": {
+      "current_value": "0.33",
+      "new_value": 0.5,
+      "change_type": "increase",
+      "reason": "TotalSegmentatorV1 has 104 anatomical structures with significant class imbalance. Increasing foreground oversampling from 0.33 to 0.5 ensures better representation of minority classes during training.",
+      "expected_effect": "Improved learning for smaller anatomical structures, better class balance, and reduced bias toward dominant foreground classes."
+    }
+  },
+  "training_strategy": {
+    "priority_level": "high",
+    "risk_level": "low",
+    "retrain_required": true
+  }
+}
