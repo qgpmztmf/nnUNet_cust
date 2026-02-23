@@ -42,6 +42,16 @@ nnUNet_change_trainer_class = "nnunet.inference.change_trainer:main"
 nnUNet_evaluate_folder = "nnunet.evaluation.evaluator:nnunet_evaluate_folder"
 nnUNet_plot_task_pngs = "nnunet.utilities.overlay_plots:entry_point_generate_overlay"
 
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nnunet"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",

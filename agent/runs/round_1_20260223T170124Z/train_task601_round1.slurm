@@ -31,7 +31,7 @@ DATA_BASE="/m/triton/scratch/elec/t41026-hintlab/tianmid1/data"
 export nnUNet_raw_data_base="${DATA_BASE}"
 export nnUNet_preprocessed="${DATA_BASE}/nnUNet_preprocessed"
 export RESULTS_FOLDER="${DATA_BASE}/nnUNet_results"
-export NNUNET_HP_REF="/scratch/elec/t41026-hintlab/tianmid1/nnUNet_cust/agent/doc/hyperparameter_reference.json"
+export NNUNET_HP_REF="${REPO_DIR}/agent/doc/hyperparameter_reference.json"
 
 mkdir -p "${REPO_DIR}/logs"
 

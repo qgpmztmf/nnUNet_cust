@@ -813,7 +813,7 @@ class PipelineManager:
 # Plans:   nnUNetPlansv2.1
 #
 # Hyperparameter overrides are read automatically from:
-#   {hp_ref_path}
+#   <REPO_DIR>/agent/doc/hyperparameter_reference.json
 #
 # Submit all 5 folds:
 #   sbatch --array=0-4 {log_stem}.slurm
@@ -829,7 +829,7 @@ DATA_BASE="/m/triton/scratch/elec/t41026-hintlab/tianmid1/data"
 export nnUNet_raw_data_base="${{DATA_BASE}}"
 export nnUNet_preprocessed="${{DATA_BASE}}/nnUNet_preprocessed"
 export RESULTS_FOLDER="${{DATA_BASE}}/nnUNet_results"
-export NNUNET_HP_REF="{hp_ref_path}"
+export NNUNET_HP_REF="${{REPO_DIR}}/agent/doc/hyperparameter_reference.json"
 
 mkdir -p "${{REPO_DIR}}/logs"
 
