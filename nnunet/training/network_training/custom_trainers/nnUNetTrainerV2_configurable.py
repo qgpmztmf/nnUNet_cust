@@ -82,7 +82,10 @@ class nnUNetTrainerV2_configurable(nnUNetTrainerV2_fast):
         # ── Step 1: read batch_dice from JSON BEFORE super().__init__() ──────
         # nnUNetTrainer.__init__() builds self.loss immediately using batch_dice,
         # so we must resolve it before the super() call.
-        _pre = self._read_active_values(self.HP_JSON_PATH)
+        # NNUNET_HP_REF env var (set by SLURM scripts) takes priority over the
+        # hardcoded default path.
+        _hp_path = os.environ.get("NNUNET_HP_REF") or self.HP_JSON_PATH
+        _pre = self._read_active_values(_hp_path)
         batch_dice = bool(_pre.get("batch_dice", batch_dice))
 
         super().__init__(
@@ -227,7 +230,7 @@ class nnUNetTrainerV2_configurable(nnUNetTrainerV2_fast):
         * moreDA hardcoded params (gaussian_noise_p, etc.) are stored on self
           but have no training effect without editing data_augmentation_moreDA.py.
         """
-        path = path or self.HP_JSON_PATH
+        path = path or os.environ.get("NNUNET_HP_REF") or self.HP_JSON_PATH
         active = self._read_active_values(path)
         if not active:
             return
