@@ -133,3 +133,6 @@ logs/
 *.err
 *.out
 
+# Large nnUNet evaluation result JSONs stored in run directories (can be 70+ MB)
+agent/runs/*/val_summary.json
+

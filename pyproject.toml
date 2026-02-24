@@ -20,6 +20,9 @@ dependencies = [
     "nibabel>=5.3.3",
     "tifffile",
     "matplotlib",
+    "anthropic>=0.83.0",
+    "python-dotenv>=1.2.1",
+    "openai>=2.23.0",
 ]
 
 [project.scripts]

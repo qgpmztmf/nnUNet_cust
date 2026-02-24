@@ -1,48 +1,55 @@
 {
   "diagnosis": {
-    "global_issue": "No performance metrics available from test or validation results. This is likely the first training iteration or training failed to produce evaluation outputs. Without performance data, tuning must be based on general best practices for multi-class segmentation (Task601_TotalSegmentatorV1).",
-    "class_specific_issues": {}
+    "global_issue": "Catastrophic class collapse - model only predicts a few classes (class_0, class_5, class_13, class_14, class_17) while 100+ other classes show zero Dice. This indicates severe class imbalance, insufficient gradient flow to minority classes, and potential loss function misconfiguration. The model is essentially ignoring most anatomical structures.",
+    "class_specific_issues": {
+      "class_0": "Performs well (0.9226 Dice) - likely background or dominant class",
+      "class_5": "Moderate performance (0.5345 test, 0.2339 val) - shows some learning",
+      "class_13": "Poor performance (0.1375 test, 0.1555 val) - barely learned",
+      "class_14": "Near-zero (0.0027 test, 0.0223 val) - effectively not learned",
+      "class_17": "Moderate (0.3322 test, 0.2132 val) - shows some learning",
+      "all_other_classes": "Complete collapse (0.0000 Dice) - no gradient signal reaching these classes"
+    }
   },
   "tuning_decision": {
-    "initial_lr_nnUNetTrainerV2": {
-      "current_value": "0.007",
-      "new_value": "0.01",
-      "change_type": "increase",
-      "reason": "Current LR (0.007) is below default (0.01). For initial training with no performance data, resetting to default provides stable baseline. SGD with poly-LR benefits from higher initial LR for faster convergence.",
-      "expected_effect": "Faster initial convergence, better gradient flow in early epochs"
-    },
     "batch_dice": {
       "current_value": "false",
       "new_value": "true",
       "change_type": "enable",
-      "reason": "Batch Dice (true) is nnUNet default and generally performs better for multi-class segmentation by computing Dice across batch dimension rather than per sample. Current setting (false) may reduce training stability.",
-      "expected_effect": "Improved training stability, better gradient estimates, more consistent loss computation"
+      "reason": "Batch Dice provides more stable gradient estimates across the batch, especially important for multi-class segmentation with severe class imbalance. It helps prevent gradient starvation for rare classes.",
+      "expected_effect": "Improve gradient flow to minority classes, reduce class collapse, increase overall mean Dice"
     },
     "oversample_foreground_percent": {
-      "current_value": "0.66",
-      "new_value": "0.33",
-      "change_type": "decrease",
-      "reason": "Current value (0.66) is double the default (0.33). For TotalSegmentator with many classes, excessive foreground oversampling may bias training toward foreground at expense of background learning. Reset to default for balanced sampling.",
-      "expected_effect": "More balanced batch composition, better background/foreground trade-off"
+      "current_value": "0.5",
+      "new_value": "0.75",
+      "change_type": "increase",
+      "reason": "Current 0.5 is insufficient for 105-class segmentation with extreme imbalance. Increasing to 0.75 ensures more foreground samples per batch, giving minority classes more exposure during training.",
+      "expected_effect": "Increase representation of rare classes in training batches, improve learning of collapsed classes"
     },
     "weight_ce": {
-      "current_value": "1.5",
-      "new_value": "1.0",
-      "change_type": "decrease",
-      "reason": "Current CE weight (1.5) is higher than default (1.0). Without performance data indicating class imbalance issues, resetting to default 1:1 Dice:CE ratio provides balanced optimization.",
-      "expected_effect": "Balanced Dice and CE contributions, prevents CE dominance in early training"
+      "current_value": "1.0",
+      "new_value": "2.0",
+      "change_type": "increase",
+      "reason": "Cross-entropy loss provides per-voxel gradients that are more sensitive to class imbalance than Dice loss. Increasing its weight helps propagate gradients to rarely-predicted classes.",
+      "expected_effect": "Strengthen per-class gradient signals, reduce class collapse, improve recall for minority classes"
     },
-    "num_batches_per_epoch": {
-      "current_value": "350",
-      "new_value": "250",
-      "change_type": "decrease",
-      "reason": "Current value (350) is higher than NetworkTrainer default (250). For initial training, reducing iterations per epoch provides more frequent validation and checkpointing without excessive computation per epoch.",
-      "expected_effect": "More frequent validation updates, better epoch-wise monitoring, reduced memory pressure"
+    "initial_lr_nnUNetTrainerV2": {
+      "current_value": "0.001",
+      "new_value": "0.01",
+      "change_type": "increase",
+      "reason": "Current LR (0.001) is too low for initial learning phase with many collapsed classes. Restoring to nnUNetV2 default (0.01) provides stronger gradient updates to escape poor initialization.",
+      "expected_effect": "Faster convergence, better escape from collapsed state, improved learning of minority classes"
+    },
+    "sgd_momentum": {
+      "current_value": "0.9",
+      "new_value": "0.99",
+      "change_type": "increase",
+      "reason": "Current momentum (0.9) is below nnUNetV2 default (0.99). Higher momentum helps maintain consistent update direction across sparse gradients from rare classes.",
+      "expected_effect": "More stable optimization trajectory, better accumulation of gradient information from infrequent class samples"
     }
   },
   "training_strategy": {
-    "priority_level": "medium",
-    "risk_level": "low",
+    "priority_level": "high",
+    "risk_level": "medium",
     "retrain_required": true
   }
 }

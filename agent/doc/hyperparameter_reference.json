@@ -5,7 +5,7 @@
     "value_range": "[100, 10000]",
     "category": "Training Loop Control",
     "description": "Maximum number of training epochs. nnUNetTrainerV2 always trains to this limit (no early stopping by default).",
-    "active_value": 50
+    "active_value": "200"
   },
   "num_batches_per_epoch": {
     "location": "network_trainer.py \u2192 NetworkTrainer.__init__:98 | overridden in nnUNetTrainerV2_fast.__init__:11 | nnUNetTrainerV2_configurable.__init__:98",
@@ -118,7 +118,8 @@
     "default_value": "0.99",
     "value_range": "[0.9, 0.999]",
     "category": "Optimizer",
-    "description": "SGD momentum. Auto-reduced to 0.95 at epoch 100 if val Dice is 0."
+    "description": "SGD momentum. Auto-reduced to 0.95 at epoch 100 if val Dice is 0.",
+    "active_value": "0.99"
   },
   "sgd_nesterov": {
     "location": "nnUNetTrainerV2.py \u2192 initialize_optimizer_and_scheduler:167 | nnUNetTrainerV2_configurable.__init__:111 | nnUNetTrainerV2_configurable.py \u2192 initialize_optimizer_and_scheduler:644",
@@ -333,7 +334,7 @@
     "value_range": "[0, 10]",
     "category": "Loss Function",
     "description": "Scalar weight applied to the CrossEntropy component of the combined loss.",
-    "active_value": "1.0"
+    "active_value": "2.0"
   },
   "square_dice": {
     "location": "dice_loss.py \u2192 DC_and_CE_loss.__init__:305 | nnUNetTrainerV2_configurable.__init__:122",
@@ -837,7 +838,7 @@
     "value_range": "[0.0, 1.0]",
     "category": "Data Loading",
     "description": "Fraction of each batch guaranteed to contain foreground voxels for class balance.",
-    "active_value": "0.33"
+    "active_value": "0.75"
   },
   "unpack_data": {
     "location": "nnUNetTrainer.py \u2192 __init__:76",

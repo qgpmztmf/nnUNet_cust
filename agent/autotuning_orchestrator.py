@@ -395,6 +395,7 @@ class PipelineManager:
         doc_dir: Path,
         log_dir: Path,
         runs_dir: Path,
+        data_base: Path,
         model: str = DEFAULT_MODEL,
         provider: str = PROVIDER_ANTHROPIC,
         auto_train: bool = False,
@@ -403,6 +404,7 @@ class PipelineManager:
         use_test_data: bool = False,
     ) -> None:
         self.task           = task
+        self.data_base      = data_base
         self.doc_dir        = doc_dir
         self.log_dir        = log_dir
         self.runs_dir       = runs_dir
@@ -454,10 +456,115 @@ class PipelineManager:
         m = re.search(r"Task(\d+)", self.task)
         return m.group(1) if m else self.task
 
+    def _task_name(self) -> str:
+        """Return the full nnUNet task name, e.g. 'Task601_TotalSegmentatorV1'.
+
+        Handles both forms of --task input:
+          - full name:  'Task601_TotalSegmentatorV1'  → returned as-is
+          - numeric ID: '601'                         → scanned from nnUNet_raw_data/
+        Falls back to 'Task{id}' if no matching directory is found.
+        """
+        if re.match(r"^Task\d+_.+", self.task):
+            return self.task          # already the full canonical name
+        task_id = self._task_id()
+        raw_data_dir = self.data_base / "nnUNet_raw_data"
+        if raw_data_dir.is_dir():
+            for entry in raw_data_dir.iterdir():
+                if re.match(rf"^Task{task_id}_", entry.name):
+                    return entry.name
+        return f"Task{task_id}"       # fallback
+
     def _load_file(self, path: Path) -> str:
         if not path.exists():
             raise FileNotFoundError(f"Required file not found: {path}")
         return path.read_text(encoding="utf-8")
+
+    def _summarize_eval_json(self, path: Path) -> str:
+        """Return a compact per-class Dice summary instead of the full JSON.
+
+        nnUNet summary JSONs can be 70-100 MB because they store per-case
+        results for every class.  The LLM only needs the per-class mean Dice,
+        overall mean Dice, and a count of how many cases were evaluated.
+        """
+        if not path.exists():
+            return "(file not found)"
+        with path.open(encoding="utf-8") as fh:
+            d = json.load(fh)
+        mean_vals = d.get("results", {}).get("mean", {})
+        n_cases   = len(d.get("results", {}).get("all", []))
+        lines = [f"cases_evaluated: {n_cases}"]
+        overall = mean_vals.get("mean", {}).get("Dice", float("nan"))
+        lines.append(f"overall_mean_dice: {overall:.4f}")
+        lines.append("per_class_mean_dice:")
+        # collect all integer keys (class labels)
+        class_keys = sorted(
+            [k for k in mean_vals if k != "mean" and k.isdigit()],
+            key=lambda x: int(x),
+        )
+        for k in class_keys:
+            dice = mean_vals[k].get("Dice", float("nan"))
+            lines.append(f"  class_{k}: {dice:.4f}")
+        return "\n".join(lines)
+
+    def _backup_model_checkpoints(self, prev_round: int) -> None:
+        """Back up model checkpoints from the previous round before overwriting.
+
+        Copies plans.pkl + per-fold model files and training logs into:
+          <model_dir>_round{prev_round}_backup/
+
+        Only checkpoint files are copied (~2-3 GB); large NIfTI prediction
+        directories are skipped since they can be regenerated.
+        Skips silently if the model directory does not exist yet.
+        """
+        task_id     = self._task_id()
+        task_name   = self._task_name()
+        model_dir   = (
+            self.data_base
+            / "nnUNet_results"
+            / "nnUNet"
+            / "3d_fullres"
+            / task_name
+            / "nnUNetTrainerV2_configurable__nnUNetPlansv2.1"
+        )
+        if not model_dir.exists():
+            self.log.info(
+                "[backup] Model dir not found, skipping backup: %s", model_dir
+            )
+            return
+
+        backup_dir = model_dir.parent / f"{model_dir.name}_round{prev_round}_backup"
+        if backup_dir.exists():
+            self.log.info(
+                "[backup] Backup already exists, skipping: %s", backup_dir
+            )
+            return
+
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        self.log.info(
+            "[backup] Backing up round %d checkpoints → %s", prev_round, backup_dir
+        )
+
+        # plans.pkl
+        plans = model_dir / "plans.pkl"
+        if plans.exists():
+            shutil.copy2(str(plans), str(backup_dir / "plans.pkl"))
+
+        # per-fold: model files + debug.json + training logs
+        for fold in range(5):
+            fold_src = model_dir / f"fold_{fold}"
+            if not fold_src.exists():
+                continue
+            fold_dst = backup_dir / f"fold_{fold}"
+            fold_dst.mkdir(exist_ok=True)
+            for pattern in ("model_*.model", "model_*.model.pkl",
+                            "debug.json", "training_log_*.txt"):
+                for f in fold_src.glob(pattern):
+                    shutil.copy2(str(f), str(fold_dst / f.name))
+
+        size = sum(f.stat().st_size for f in backup_dir.rglob("*") if f.is_file())
+        self.log.info(
+            "[backup] Done. %.1f MB backed up to %s", size / 1e6, backup_dir
+        )
 
     def _save_json(self, path: Path, data: dict) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -597,7 +704,7 @@ class PipelineManager:
 
         sections.append(f"## TEST RESULT (path: {test_summary_path})")
         if test_summary_path.exists():
-            sections.append(self._load_file(test_summary_path))
+            sections.append(self._summarize_eval_json(test_summary_path))
         else:
             self.log.warning("Test summary not found: %s", test_summary_path)
             sections.append("(file not found — no test results available for this run)")
@@ -605,7 +712,7 @@ class PipelineManager:
         sections.append("")
         sections.append(f"## VALIDATION RESULT (path: {val_summary_path})")
         if val_summary_path.exists():
-            sections.append(self._load_file(val_summary_path))
+            sections.append(self._summarize_eval_json(val_summary_path))
         else:
             self.log.warning("Validation summary not found: %s", val_summary_path)
             sections.append(
@@ -908,7 +1015,7 @@ echo "Training fold ${{FOLD}} round {round_n} complete: $(date)"
 
         task_id     = self._task_id()
         round_n     = self.round
-        task_suffix = self.task.split("_", 1)[-1] if "_" in self.task else self.task
+        task_suffix = self._task_name().split("_", 1)[-1]
         run_dir_str = str(self.run_dir)
         job_name    = f"nnunet_eval_{task_id}_r{round_n}"
         log_stem    = f"eval_{task_id}_round{round_n}"
@@ -1102,7 +1209,7 @@ echo "=== Evaluation round {round_n} complete: $(date) ==="
 
         task_id     = self._task_id()
         round_n     = self.round
-        task_suffix = self.task.split("_", 1)[-1] if "_" in self.task else self.task
+        task_suffix = self._task_name().split("_", 1)[-1]
         run_dir_str = str(self.run_dir)
 
         # ── Script 1: per-fold GPU prediction ────────────────────────────────
@@ -1525,6 +1632,10 @@ echo "Copied to:   ${{RUN_DIR}}/test_summary.json"
                     "agent can find per-round results automatically.",
                     self.run_dir,
                 )
+
+            # Back up this round's model checkpoints at end of round
+            # (no-op if training has not yet run — model dir missing)
+            self._backup_model_checkpoints(prev_round=self.round)
             return
 
         # ── Round 2+: agent reads previous round results ──────────────────────
@@ -1578,6 +1689,11 @@ echo "Copied to:   ${{RUN_DIR}}/test_summary.json"
             )
             # Copy nnUNet results into run_dir so the next round's agent can read them
             self._collect_results_to_run_dir(test_summary_path, val_summary_path)
+
+        # Back up this round's model checkpoints at end of round
+        # For round N, backs up the previous round (N-1) before new training overwrites it.
+        # (no-op if backup already exists or model dir is missing)
+        self._backup_model_checkpoints(prev_round=self.round - 1)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -1772,6 +1888,7 @@ def main() -> None:
         doc_dir        = args.doc_dir,
         log_dir        = args.log_dir,
         runs_dir       = args.runs_dir,
+        data_base      = data_base,
         model          = model,
         provider       = args.provider,
         auto_train     = args.auto_train,
