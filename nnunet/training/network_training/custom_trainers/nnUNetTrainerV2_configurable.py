@@ -85,7 +85,12 @@ class nnUNetTrainerV2_configurable(nnUNetTrainerV2_fast):
         # NNUNET_HP_REF env var (set by SLURM scripts) takes priority over the
         # hardcoded default path.
         _hp_path = os.environ.get("NNUNET_HP_REF") or self.HP_JSON_PATH
+        print(f"[configurable] NNUNET_HP_REF env = {os.environ.get('NNUNET_HP_REF')!r}")
+        print(f"[configurable] HP_JSON_PATH (default) = {self.HP_JSON_PATH!r}")
+        print(f"[configurable] Resolved JSON path = {_hp_path!r}")
+        print(f"[configurable] JSON file exists = {os.path.isfile(_hp_path)}")
         _pre = self._read_active_values(_hp_path)
+        print(f"[configurable] Pre-init active values ({len(_pre)} keys): {_pre}")
         batch_dice = bool(_pre.get("batch_dice", batch_dice))
 
         super().__init__(
@@ -232,7 +237,17 @@ class nnUNetTrainerV2_configurable(nnUNetTrainerV2_fast):
         """
         path = path or os.environ.get("NNUNET_HP_REF") or self.HP_JSON_PATH
         active = self._read_active_values(path)
+        self.print_to_log_file(
+            f"[configurable] load_hyperparameters_from_json path = {path!r}"
+        )
+        self.print_to_log_file(
+            f"[configurable] JSON file exists = {os.path.isfile(path)}"
+        )
+        self.print_to_log_file(
+            f"[configurable] Active values read ({len(active)} keys): {active}"
+        )
         if not active:
+            self.print_to_log_file("[configurable] WARNING: no active values found — all defaults will be used!")
             return
 
         self.print_to_log_file(
@@ -441,7 +456,14 @@ class nnUNetTrainerV2_configurable(nnUNetTrainerV2_fast):
         if "batch_size_forced_fast" in active:
             self.batch_size_forced_fast = int(active["batch_size_forced_fast"])
 
-        self.print_to_log_file("[configurable] Hyperparameter overrides applied.")
+        self.print_to_log_file(
+            f"[configurable] Hyperparameter overrides applied.\n"
+            f"  max_num_epochs         = {self.max_num_epochs}\n"
+            f"  num_batches_per_epoch  = {self.num_batches_per_epoch}\n"
+            f"  batch_size_forced_fast = {self.batch_size_forced_fast}\n"
+            f"  initial_lr             = {self.initial_lr}\n"
+            f"  aug_do_mirror          = {self.aug_do_mirror}"
+        )
 
     # ══════════════════════════════════════════════════════════════════════════
     # Private helpers
