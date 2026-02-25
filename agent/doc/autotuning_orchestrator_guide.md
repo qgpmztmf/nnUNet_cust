@@ -10,6 +10,42 @@ generates ready-to-submit training and evaluation SLURM scripts for the next tra
 
 ## Prerequisites
 
+**0. Install `uv` (required — replaces conda/pip)**
+
+All Python commands in this guide use `uv run`. `uv` is a fast, modern Python package and
+project manager written in Rust. Install it with:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Official site and docs: **<https://docs.astral.sh/uv>**
+
+**Why `uv` instead of conda?**
+
+| | `uv` | `conda` |
+|---|---|---|
+| Speed | Installs/resolves in seconds (Rust resolver) | Minutes for large environments |
+| Lock files | Deterministic `uv.lock` — exact reproducibility | `environment.yml` is not lock-file-level reproducible |
+| No base environment | Each project is self-contained; no activation step | Requires `conda activate <env>` and can pollute base |
+| Storage | Shared package cache, deduped | Each env duplicates all packages |
+| Standard-compatible | Uses `pyproject.toml` / PEP 517-compliant builds | Custom `.conda` format, separate ecosystem |
+| Drop-in for pip | `uv pip install` / `uv run` just work | Requires separate `pip` inside conda env |
+
+Once `uv` is installed, **no environment activation is needed** — just prefix every command
+with `uv run` from the project root and `uv` automatically uses the project's
+`pyproject.toml` to resolve dependencies.
+
+```bash
+# Wrong (requires manual conda activate, venv activate, etc.):
+python agent/autotuning_orchestrator.py ...
+
+# Correct — uv resolves and runs with the right environment:
+uv run python agent/autotuning_orchestrator.py ...
+```
+
+---
+
 **1. API key** — set in `nnUNet_cust/.env` or as an environment variable:
 
 ```bash
